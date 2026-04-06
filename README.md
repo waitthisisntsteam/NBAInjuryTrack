@@ -31,8 +31,8 @@ The application is built entirely in Python and operates through three distinct 
 * **Data Ingestion:** `nba_api`, `nbainjuries`
 * **Data Engineering & Feature Extraction:** `pandas`, `numpy`
 * **Predictive Modeling:** `xgboost`, `scikit-learn`
-* **Generative AI / NLP:** `gemma4`
-* - "You are a sports risk analyst. I will provide an injury prediction, recent workload, and past injury history. Write a simple, 1 to 2 sentence summary explaining the player's current risk level of ____ given by XGBoost. Keep the explanation concise. You must strictly avoid giving any medical treatment, rehabilitation, or recovery advice."
+* **Generative AI / NLP:** `groq` (Free API)
+- "You are a sports risk analyst. I will provide an injury prediction, recent workload, and past injury history. Write a simple, 1 to 2 sentence summary explaining the player's current risk level of ____ given by XGBoost. Keep the explanation concise. You must strictly avoid giving any medical treatment, rehabilitation, or recovery advice."
 * **Frontend Framework:** `streamlit`
 
 ## Suggested UI/UX Implementation
