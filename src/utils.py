@@ -50,7 +50,7 @@ def generate_clinical_narrative(player_name, acute_load, chronic_load, ml_probs,
                     "content": prompt
                 }
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             temperature=0.2,
             max_tokens=150
         )
