@@ -118,7 +118,10 @@ def main():
 
     # --- 6. CLEAN UP AND EXPORT ---
     # Keep only the columns the ML model actually needs to learn from
-    ml_ready_df = merged_df[FEATURES + [TARGET]].copy()
+    final_cols = [
+        'player_name', 'GAME_DATE', 'MIN', 'Acute_Load_5G', 'Chronic_Load_15G', 'Injury_Class'
+    ]
+    ml_ready_df = merged_df[final_cols].copy()
 
     ml_ready_df.to_csv(CLEANED_TRAINING_DATA_PATH, index=False)
     print(f"Success! ML dataset created with shape: {ml_ready_df.shape}")
