@@ -6,6 +6,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
+from sklearn.utils.class_weight import compute_sample_weight
 from xgboost import XGBClassifier
 from sklearn.metrics import classification_report, accuracy_score
 from config import (
@@ -74,8 +75,14 @@ def main():
     )
 
     clf = Pipeline(steps=[("preprocessor", preprocessor), ("model", model)])
-    clf.fit(X_train, y_train)
 
+    print("Computing sample weights to handle class imbalance...")
+    raw_weights = compute_sample_weight(class_weight="balanced", y=y_train)
+
+    # Cap the maximum weight penalty at 150x so it can surface rare classes
+    sample_weights = np.clip(raw_weights, a_min=None, a_max=150.0)
+
+    clf.fit(X_train, y_train, model__sample_weight=sample_weights)
     # --- 3. EVALUATE THE MODEL ---
     print("\nEvaluating Model Accuracy...")
 
@@ -93,6 +100,19 @@ def main():
             zero_division=0,
         )
     )
+
+    print("\n--- Probability Peek (Top 5 Highest Risk Predictions) ---")
+    # Get the raw probability percentages for all classes
+    probs = clf.predict_proba(X_test)
+
+    # Find the rows where the sum of injury probabilities (Classes 1-5) is the highest
+    injury_risks = np.sum(probs[:, 1:], axis=1)
+    top_5_indices = np.argsort(injury_risks)[-5:][::-1]
+
+    for idx in top_5_indices:
+        print(f"\nTest Row {idx}:")
+        for class_idx, class_name in CLASS_LABELS.items():
+            print(f"  {class_name}: {probs[idx][class_idx]*100:.2f}%")
     # --- 4. EXPORT THE MODEL ---
     print("\nSaving the model...")
     with open(MODEL_PATH, "wb") as f:

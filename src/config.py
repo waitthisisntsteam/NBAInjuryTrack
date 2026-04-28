@@ -39,9 +39,9 @@ MODEL_PATH = MODELS_DIR / "xgboost_injury_model.pkl"
 # ============================================
 TEST_SIZE = 0.2
 RANDOM_STATE = 5
-MODEL_MAX_DEPTH = 4
-MODEL_LEARNING_RATE = 0.01
-MODEL_N_ESTIMATORS = 100
+MODEL_MAX_DEPTH = 7
+MODEL_LEARNING_RATE = 0.05
+MODEL_N_ESTIMATORS = 350
 
 # ============================================
 # FEATURES
