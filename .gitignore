@@ -13,4 +13,4 @@ __pycache__/
 .streamlit/
 
 data/original/*
-data/prep_data/*
+data/prep_data/raw*
