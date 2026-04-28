@@ -1,26 +1,32 @@
 import os
 from groq import Groq
-from config import SEVERITY_MULTIPLIERS
+from config import SEVERITY_MULTIPLIERS, CLASS_LABELS
 
 # --- 1. THE CLINICAL TRIAGE ENGINE (Expected Impact Math) ---
 def calculate_expected_impact(probabilities):
     """
     Translates raw ML probabilities into a Severity-Weighted Risk Alert.
-    Expects a list/array like: [p_healthy, p_soft_tissue, p_severe]
+    Expects a list/array aligned with CLASS_LABELS.
     """
-    p_healthy, p_soft, p_severe = probabilities[0]
+    probs = probabilities[0]
 
-    # Calculate expected impact using the explicitly imported dictionary
-    impact_soft = p_soft * SEVERITY_MULTIPLIERS[1]
-    impact_severe = p_severe * SEVERITY_MULTIPLIERS[2]
+    impacts = {
+        class_idx: probs[class_idx] * SEVERITY_MULTIPLIERS[class_idx]
+        for class_idx in SEVERITY_MULTIPLIERS
+        if class_idx != 0 and class_idx < len(probs)
+    }
 
-    # Determine the highest threat based on impact, not just raw probability
-    if impact_severe > impact_soft and impact_severe > 0.5:
-        return "CRITICAL: High Structural Risk", impact_severe
-    elif impact_soft > impact_severe and impact_soft > 0.5:
-        return "WARNING: Elevated Soft Tissue Risk", impact_soft
-    else:
+    if not impacts:
         return "OPTIMAL: Baseline Risk Level", 0.0
+
+    max_class = max(impacts, key=impacts.get)
+    max_impact = impacts[max_class]
+
+    if max_impact >= 1.0:
+        return "CRITICAL: High Injury Risk", max_impact
+    if max_impact >= 0.5:
+        return "WARNING: Elevated Injury Risk", max_impact
+    return "OPTIMAL: Baseline Risk Level", max_impact
 
 # --- 2. THE EXPLAINABLE AI SYNTHESIS (Groq API) ---
 def generate_clinical_narrative(player_name, acute_load, chronic_load, ml_probs, injury_history_text):
@@ -29,13 +35,19 @@ def generate_clinical_narrative(player_name, acute_load, chronic_load, ml_probs,
     """
     try:
         client = Groq()
-
-        p_healthy, p_soft, p_severe = ml_probs[0]
+        probs = ml_probs[0]
+        risk_lines = ", ".join(
+            [
+                f"{CLASS_LABELS[i]} {probs[i]*100:.1f}%"
+                for i in sorted(CLASS_LABELS.keys())
+                if i < len(probs)
+            ]
+        )
 
         prompt = f"""
         Player: {player_name}
         Workload Vitals: {acute_load:.1f} mins/game (Recent 5G), {chronic_load:.1f} mins/game (Season 15G).
-        XGBoost Risk Probabilities: {p_healthy*100:.1f}% Healthy, {p_soft*100:.1f}% Soft Tissue, {p_severe*100:.1f}% Severe.
+        XGBoost Risk Probabilities: {risk_lines}
         Past Injury Context: {injury_history_text}
         """
 

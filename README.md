@@ -1,42 +1,103 @@
+# NBA Injury Track: a Longitudal Risk & Triage Dashboard
 
-# NBA Injury Tracker & Predictor: A Longitudinal Risk Stratification & NLP Triage Dashboard
+## Overview
+NBA Injury Track is a full-stack, end-to-end pipeline that turns NBA game logs, biometrics, and public injury reports into a clinical-style risk stratification dashboard. It uses engineered workload and biometric features to generate multi-class injury probabilities with XGBoost, then synthesizes an explanatory narrative using a Groq-hosted Llama model.
 
-## Abstract
-This project is an end-to-end Explainable AI (XAI) pipeline designed to simulate a **Clinical Decision Support System (CDSS)**. 
+The system is built around three outputs:
+- **Risk probabilities:** six-class injury classification from XGBoost.
+- **Triage signal:** a severity-weighted expected impact alert.
+- **Clinical narrative:** a short XAI summary grounded in workload, biometrics, and recent injury context.
 
-The system demonstrates how tracking real-time physical load and historical vulnerability can forecast acute health events, triage risks by severity, and provide physician-facing explanations using Generative AI. This architecture utilizes NBA player workloads, game logs, and public injury reports.
+## Data Sources
+We use static Kaggle CSVs:
+- `PlayerStatisticsExtended.csv`
+- `Players.csv`
+- `injury_data.csv`
 
-This project solves both issues by translating sports analytics into clinical informatics:
-* **The Patient Profile:** NBA Injury History acts as a proxy for pre-existing conditions and longitudinal phenotyping.
-* **The Vitals:** Game logs (minutes played, back-to-backs, usage rate) act as a proxy for acute physical stress and high-frequency biometric data.
-* **The Output:** A triaged, interpretable dashboard designed to aid—not replace—human decision-making in high-stakes environments.
+All data is constrained to **2016–2025** to match the injury dataset coverage. (I got IP banned on my university wifi and VPN)
 
-## System Architecture 
+## Pipeline Summary
+1. **Prep Kaggle data**
+   - Clean game logs, biometrics, and injuries.
+   - Normalize names and filter noise (rest/illness/management).
+   - Build a list of active players (2024–2025) for the UI.
 
-The application is built entirely in Python and operates through three distinct microservices:
+2. **Feature engineering**
+   - Expanded workload windows and rolling loads.
+   - Acute/Chronic ratio and short-horizon minute sums.
+   - BMI + biometric tiers + position group.
+   - Usage/Pace mix and back-to-back flags.
+   - 6-tier injury classification mapped from text.
 
-### 1. The Machine Learning Engine (Risk Probability)
-* **Model:** `XGBClassifier`.
-* **Function:** Ingests engineered features (acute workload, chronic load, injury density) to output a multi-class probability distribution. 
-* **Outcome:** Predicts the likelihood of specific event categories (e.g., Soft Tissue Strain vs. Ligamentous Injury vs. Healthy).
+3. **Model training**
+   - XGBoost with class-weighted loss for severe imbalance.
+   - Outputs multi-class probabilities.
 
-### 2. The Clinical Triage Engine (Expected Impact Score)
-* **Function:** Raw probability is insufficient for clinical triage. A 20% risk of a catastrophic event requires more urgent attention than an 80% risk of a minor event.
-* **Mechanism:** The system computes an **Expected Impact Score** by multiplying the ML probability by a static Severity Multiplier (e.g., ACL Tear = 250 days; Minor Sprain = 10 days). This mathematical layer automatically flags the most critical threat for the end-user.
+4. **Streamlit UI**
+   - Active player search + optional comparison player.
+   - Projection inputs (minutes + back-to-back).
+   - Probability distribution + clinical narrative.
 
-### 3. The Explainable AI (XAI) Synthesis
-* **Mechanism:** The system feeds the XGBoost numerical outputs, the recent workload stats, and the text-based injury history into a Large Language Model. The LLM is strictly prompted to synthesize this specific data into a concise, evidence-based "Clinical Narrative" to explain the risk factors to the practitioner.
+## Injury Classes
+The model predicts a 6-tier orthopedic severity scale:
+0. Healthy
+1. Fatigue/Soreness
+2. Contusion/Impact
+3. Joint Sprain
+4. Muscular Strain
+5. Structural/Surgical
 
-## Tech Stack
-* **Data Ingestion:** `nba_api`, `nbainjuries`
-* **Data Engineering & Feature Extraction:** `pandas`, `numpy`
-* **Predictive Modeling:** `xgboost`, `scikit-learn`
-* **Generative AI / NLP:** `groq` (Free API)
-- "You are a sports risk analyst. I will provide an injury prediction, recent workload, and past injury history. Write a simple, 1 to 2 sentence summary explaining the player's current risk level of ____ given by XGBoost. Keep the explanation concise. You must strictly avoid giving any medical treatment, rehabilitation, or recovery advice."
-* **Frontend Framework:** `streamlit`
+## Project Structure
+```
+NBAInjuryTrack/
+├─ data/
+│  ├─ original/        # raw Kaggle CSVs
+│  ├─ prep_data/       # cleaned injuries, merged logs, active players
+│  └─ training/        # cleaned_training_data.csv
+├─ models/             # saved XGBoost model
+├─ src/
+│  ├─ prep_kaggle_data.py
+│  ├─ feature_engineering.py
+│  ├─ model_training.py
+│  ├─ app.py           # streamlit website builder
+│  └─ utils.py         # streamlit website helper
+└─ requirements.txt
+```
 
-## Suggested UI/UX Implementation
-* **Intake Sidebar:** Controls for selecting an individual profile.
-* **Vitals & Alerts (Top Row):** High-level indicators displaying current fatigue parameters and the highest-severity risk alert (driven by the Expected Impact Score).
-* **Probability Visualizations (Middle):** Horizontal bar charts plotting the full probability distribution of all potential outcomes.
-* **Narrative Synthesis (Bottom):** A styled text container displaying the LLM-generated clinical summary, grounding the mathematical predictions in a readable, physician-friendly context.
+## Setup
+[Players & PlayerStatisticsExtended](https://www.kaggle.com/datasets/eoinamoore/historical-nba-data-and-player-box-scores?select=Games.csv)
+[injury_data](https://www.kaggle.com/datasets/jacquesoberweis/2016-2025-nba-injury-data)
+
+
+1. Place Kaggle CSVs:
+```
+data/original/Players.csv
+data/original/PlayerStatisticsExtended.csv
+data/original/injury_data.csv
+```
+
+2. Install dependencies:
+```
+pip install -r requirements.txt
+```
+
+3. Run the pipeline:
+```
+python src/prep_kaggle_data.py
+python src/feature_engineering.py
+python src/model_training.py
+```
+
+4. Launch Streamlit:
+```
+streamlit run src/app.py
+```
+
+## Notes
+- The model is trained on historical injury outcomes and predicts probabilities, not diagnoses.
+- The LLM narrative is explanatory only and can be incomplete or incorrect.
+
+## Credits
+- Kaggle datasets listed above
+- NBA public injury reports
+- Groq API for LLM synthesis
