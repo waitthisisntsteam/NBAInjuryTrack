@@ -305,9 +305,11 @@ with controls[1]:
         comparison_b2b = b2b_col.checkbox("B2B", value=False, key="comparison_b2b")
 
 st.markdown("---")
+footer = "Source code: https://github.com/waitthisisntsteam/NBAInjuryTrack/tree/main"
 
 if not selected_player or projected_minutes is None:
     st.info("Search for a player above to begin.")
+    st.caption(footer)
     st.stop()
 
 if comparison_player and comparison_minutes is not None:
