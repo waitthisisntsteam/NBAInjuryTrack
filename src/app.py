@@ -4,7 +4,8 @@ import pickle
 from config import (
     MODEL_PATH,
     CLEANED_TRAINING_DATA_PATH,
-    RAW_INJURIES_PATH,
+    CLEANED_INJURIES_PATH,
+    ACTIVE_PLAYERS_PATH,
     FEATURES,
     FEATURE_WINDOW_ACUTE,
     FEATURE_WINDOW_CHRONIC,
@@ -27,24 +28,31 @@ def load_data():
     latest_stats = df.sort_values("GAME_DATE").groupby("player_name").last().reset_index()
     return latest_stats
 
+@st.cache_data
+def load_active_players():
+    active = pd.read_csv(ACTIVE_PLAYERS_PATH)
+    return active["player_name"].dropna().unique().tolist()
+
 def get_injury_history(player_name):
     try:
-        injuries = pd.read_csv(RAW_INJURIES_PATH)
-        player_injuries = injuries[injuries['Player Name'] == player_name]
+        injuries = pd.read_csv(CLEANED_INJURIES_PATH)
+        player_injuries = injuries[injuries["player_name"] == player_name]
         if player_injuries.empty:
             return "No recent injuries on record."
 
-        recent_reasons = player_injuries['Reason'].tail(3).dropna().tolist()
+        recent_reasons = player_injuries["Reason"].tail(3).dropna().tolist()
         return " | ".join(recent_reasons)
     except Exception:
         return "Injury history unavailable."
 
 model = load_model()
 player_data = load_data()
+active_players = load_active_players()
+player_data = player_data[player_data["player_name"].isin(active_players)]
 
 # --- 2. SIDEBAR: PATIENT INTAKE & SCENARIOS ---
 st.sidebar.title("Patient Intake")
-selected_player = st.sidebar.selectbox("Select Player Profile", player_data['player_name'].unique())
+selected_player = st.sidebar.selectbox("Select Player Profile", player_data["player_name"].unique())
 
 baseline = player_data[player_data['player_name'] == selected_player].iloc[0]
 

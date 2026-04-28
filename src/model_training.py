@@ -2,6 +2,10 @@ import pandas as pd
 import numpy as np
 import pickle
 from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 from sklearn.metrics import classification_report, accuracy_score
 from config import (
@@ -25,7 +29,32 @@ def main():
     # --- 1. PREPARE THE DATA ---
     print("Preparing features and target...")
     X = df[FEATURES]
-    y = df[TARGET]
+    y = df[TARGET].astype(int)
+
+    categorical_features = [
+        "Height_Tier",
+        "Weight_Tier",
+        "BMI_Tier",
+        "Position_Group",
+    ]
+    numeric_features = [col for col in FEATURES if col not in categorical_features]
+
+    numeric_transformer = Pipeline(
+        steps=[("imputer", SimpleImputer(strategy="median"))]
+    )
+    categorical_transformer = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("onehot", OneHotEncoder(handle_unknown="ignore")),
+        ]
+    )
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, numeric_features),
+            ("cat", categorical_transformer, categorical_features),
+        ]
+    )
 
     # Split the data: 80% for training, 20% for testing
     X_train, X_test, y_train, y_test = train_test_split(
@@ -44,28 +73,30 @@ def main():
         random_state=RANDOM_STATE,
     )
 
-    model.fit(X_train, y_train)
+    clf = Pipeline(steps=[("preprocessor", preprocessor), ("model", model)])
+    clf.fit(X_train, y_train)
 
     # --- 3. EVALUATE THE MODEL ---
     print("\nEvaluating Model Accuracy...")
 
-    y_pred = model.predict(X_test)
+    y_pred = clf.predict(X_test)
 
     print(f"Overall Accuracy: {accuracy_score(y_test, y_pred) * 100:.2f}%\n")
     print("Classification Report:")
+    label_order = sorted(CLASS_LABELS.keys())
     print(
         classification_report(
             y_test,
             y_pred,
-            labels=[0, 1, 2],
-            target_names=[CLASS_LABELS[0], CLASS_LABELS[1], CLASS_LABELS[2]],
+            labels=label_order,
+            target_names=[CLASS_LABELS[label] for label in label_order],
             zero_division=0,
         )
     )
     # --- 4. EXPORT THE MODEL ---
     print("\nSaving the model...")
     with open(MODEL_PATH, "wb") as f:
-        pickle.dump(model, f)
+        pickle.dump(clf, f)
 
     print("Success! Model saved as 'xgboost_injury_model.pkl'.")
 
